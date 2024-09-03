@@ -25,7 +25,7 @@ func (a *BearerAuthenticator) Authenticate(c *gin.Context) (User, error) {
 		return nil, nil
 	}
 
-	userID := a.extractToken(token)
+	userID := a.extractToken(token[7:])
 	if userID == nil {
 		return nil, nil
 	}
@@ -78,7 +78,7 @@ func (a *BearerAuthenticator) createToken(user User) (string, error) {
 		"iss": "Octanox Auth",
 		"aud": "octanox",
 		"sub": user.ID(),
-		"exp": a.exp,
+		"exp": time.Now().Add(time.Second * time.Duration(a.exp)).Unix(),
 		"iat": currTime,
 		"nbf": currTime,
 		"jti": uuid.New().String(),

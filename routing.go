@@ -39,6 +39,12 @@ func (r *SubRouter) Register(path string, handler interface{}) {
 	}
 
 	reqType := handlerType.In(0)
+	if reqType.Kind() == reflect.Ptr {
+		reqType = reqType.Elem()
+	} else {
+		panic("Handler function input parameter must be a pointer")
+	}
+
 	resType := handlerType.Out(0)
 
 	method := detectHTTPMethod(reqType)

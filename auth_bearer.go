@@ -49,6 +49,10 @@ func (a *BearerAuthenticator) login(c *gin.Context) {
 
 	user, err := a.provider.ProvideByUserPass(username, password)
 	if err != nil {
+		panic(err)
+	}
+
+	if user == nil {
 		c.JSON(401, gin.H{"error": "invalid username or password"})
 		return
 	}

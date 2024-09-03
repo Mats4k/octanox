@@ -9,7 +9,7 @@ import (
 
 // Router is a struct that represents a router in the Octanox framework. It wraps around a Gin router group with the only two differences
 // to populate the request handlers, handling responses and emit the DTOs to the client code generation process.
-type Router struct {
+type SubRouter struct {
 	gin    *gin.RouterGroup
 	routes []route
 }
@@ -23,15 +23,15 @@ type route struct {
 }
 
 // Router creates a new router with the given URL prefix.
-func (r *Router) Router(url string) *Router {
-	return &Router{
+func (r *SubRouter) Router(url string) *SubRouter {
+	return &SubRouter{
 		gin:    r.gin.Group(url),
 		routes: make([]route, 0),
 	}
 }
 
 // Register registers a new route handler. The function automatically detects the method, request and response type. If any of these detection fails, it will panic.
-func (r *Router) Register(path string, handler func(any) any) {
+func (r *SubRouter) Register(path string, handler func(any) any) {
 	handlerType := reflect.TypeOf(handler)
 
 	if handlerType.Kind() != reflect.Func || handlerType.NumIn() != 1 || handlerType.NumOut() != 1 {

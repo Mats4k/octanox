@@ -17,13 +17,13 @@ var Current *Instance
 
 // Instance is a struct that represents an instance of the Octanox framework.
 type Instance struct {
-	*Router
+	*SubRouter
 	// Gin is the underlying Gin engine that powers the Octanox framework's web server.
 	Gin *gin.Engine
 	// DB is the underlying GORM database connection that powers the Octanox framework's database operations.
 	DB *gorm.DB
 	// hooks is a map of hooks to their respective functions.
-	hooks map[Hook][]func()
+	hooks map[Hook][]func(*Instance)
 	// errorHandlers is a list of error handlers that can be called when an error occurs.
 	errorHandlers []func(error)
 	// isDebug is a flag that indicates whether the Octanox framework is running in debug mode.
@@ -42,24 +42,31 @@ func New() *Instance {
 	ginEngine := gin.New()
 
 	Current := &Instance{
-		Router: &Router{
+		SubRouter: &SubRouter{
 			gin:    &ginEngine.RouterGroup,
 			routes: make([]route, 0),
 		},
 		Gin:           ginEngine,
-		hooks:         make(map[Hook][]func()),
+		hooks:         make(map[Hook][]func(*Instance)),
 		errorHandlers: make([]func(error), 0),
 		isDebug:       gin.Mode() == gin.DebugMode,
 		isDryRun:      os.Getenv("NOX__DRY_RUN") == "true",
 	}
 
+	Current.emitHook(Hook_Init)
+
+	Current.Gin.Use(cors())
+	Current.Gin.Use(logger())
+	Current.Gin.Use(recovery())
+	Current.Gin.Use(errorCollectorToHandler())
+
 	return Current
 }
 
 // Hook registers a hook function to be called at a specific point in the Octanox runtime.
-func (i *Instance) Hook(hook Hook, f func()) {
+func (i *Instance) Hook(hook Hook, f func(*Instance)) {
 	if _, ok := i.hooks[hook]; !ok {
-		i.hooks[hook] = make([]func(), 0)
+		i.hooks[hook] = make([]func(*Instance), 0)
 	}
 
 	i.hooks[hook] = append(i.hooks[hook], f)
@@ -87,7 +94,7 @@ func (i *Instance) Run() {
 func (i *Instance) emitHook(hook Hook) {
 	if hooks, ok := i.hooks[hook]; ok {
 		for _, f := range hooks {
-			f()
+			f(Current)
 		}
 	}
 }
@@ -99,14 +106,7 @@ func (i *Instance) emitError(err error) {
 }
 
 func (i *Instance) runInternally() {
-	i.emitHook(Hook_Start)
-
-	i.Gin.Use(cors())
-	i.Gin.Use(logger())
-	i.Gin.Use(recovery())
-	i.Gin.Use(errorCollectorToHandler())
-
-	i.emitHook(Hook_InitRoutes)
+	i.emitHook(Hook_BeforeStart)
 
 	if i.isDryRun {
 		//TODO: run generator and stop

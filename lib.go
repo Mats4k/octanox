@@ -41,7 +41,7 @@ func New() *Instance {
 
 	ginEngine := gin.New()
 
-	Current := &Instance{
+	Current = &Instance{
 		SubRouter: &SubRouter{
 			gin:    &ginEngine.RouterGroup,
 			routes: make([]route, 0),

@@ -19,7 +19,7 @@ type failedRequest struct {
 
 // Failed is a function that can be called to indicate that the request has failed and should abort with a specific status code and message.
 // This function will panic with a failedRequest struct that will be caught by the Octanox framework.
-func (r *Request) Failed(status int, message string) {
+func (r Request) Failed(status int, message string) {
 	panic(failedRequest{status, message})
 }
 

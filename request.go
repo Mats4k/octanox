@@ -64,7 +64,7 @@ type TraceRequest struct {
 }
 
 // populateRequest is a function that extracts the request data from the Gin context, creates a new empty request struct from the given type, and populates it with the extracted data.
-func populateRequest(c *gin.Context, reqType reflect.Type, user *User) any {
+func populateRequest(c *gin.Context, reqType reflect.Type, user User) any {
 	reqValue := reflect.New(reqType).Elem()
 
 	for i := 0; i < reqType.NumField(); i++ {
@@ -92,7 +92,7 @@ func populateRequest(c *gin.Context, reqType reflect.Type, user *User) any {
 			if fieldValue.Kind() == reflect.Ptr {
 				fieldValue.Set(reflect.ValueOf(user))
 			} else {
-				fieldValue.Set(reflect.ValueOf(*user))
+				fieldValue.Set(reflect.ValueOf(user).Elem())
 			}
 
 			continue
@@ -111,9 +111,23 @@ func populateRequest(c *gin.Context, reqType reflect.Type, user *User) any {
 		if pathParam := field.Tag.Get("path"); pathParam != "" {
 			fieldValue.SetString(c.Param(pathParam))
 		} else if queryParam := field.Tag.Get("query"); queryParam != "" {
-			fieldValue.SetString(c.Query(queryParam))
+			queryValue := c.Query(queryParam)
+			if queryValue == "" && field.Tag.Get("optional") != "true" {
+				panic(failedRequest{
+					status:  http.StatusBadRequest,
+					message: "Missing required query parameter: " + queryParam,
+				})
+			}
+			fieldValue.SetString(queryValue)
 		} else if headerParam := field.Tag.Get("header"); headerParam != "" {
-			fieldValue.SetString(c.GetHeader(headerParam))
+			headerValue := c.GetHeader(headerParam)
+			if headerValue == "" && field.Tag.Get("optional") != "true" {
+				panic(failedRequest{
+					status:  http.StatusBadRequest,
+					message: "Missing required header: " + headerParam,
+				})
+			}
+			fieldValue.SetString(headerValue)
 		} else if bodyParam := field.Tag.Get("body"); bodyParam != "" {
 			if field.Type.Kind() == reflect.Ptr {
 				bodyInstance := reflect.New(field.Type.Elem()).Interface()

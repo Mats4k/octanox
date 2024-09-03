@@ -30,8 +30,8 @@ func (r *SubRouter) Router(url string) *SubRouter {
 	}
 }
 
-// Register registers a new route handler. The function automatically detects the method, request and response type. If any of these detection fails, it will panic.
-func (r *SubRouter) Register(path string, handler interface{}) {
+// RegisterManually registers a new route handler. The function automatically detects the method, request and response type. If any of these detection fails, it will panic.
+func (r *SubRouter) RegisterManually(path string, handler interface{}, authenticated bool, roles ...string) {
 	handlerType := reflect.TypeOf(handler)
 
 	if handlerType.Kind() != reflect.Func || handlerType.NumIn() != 1 || handlerType.NumOut() != 1 {
@@ -61,8 +61,24 @@ func (r *SubRouter) Register(path string, handler interface{}) {
 	}
 
 	r.gin.Handle(method, routeMeta.path, func(c *gin.Context) {
-		wrapHandler(c, reqType, reflect.ValueOf(handler))
+		wrapHandler(c, reqType, reflect.ValueOf(handler), authenticated, roles)
 	})
+}
+
+// Register registers a new route handler. The function automatically detects the method, request and response type. If any of these detection fails, it will panic.
+// If an authenticator is set, the route will be protected.
+func (r *SubRouter) Register(path string, handler interface{}, roles ...string) {
+	r.RegisterManually(path, handler, Current.Authenticator != nil, roles...)
+}
+
+// RegisterPublic registers a new public route handler. The function automatically detects the method, request and response type. If any of these detection fails, it will panic.
+func (r *SubRouter) RegisterPublic(path string, handler interface{}, roles ...string) {
+	r.RegisterManually(path, handler, false, roles...)
+}
+
+// RegisterProtected registers a new protected route handler. The function automatically detects the method, request and response type. If any of these detection fails, it will panic.
+func (r *SubRouter) RegisterProtected(path string, handler interface{}, roles ...string) {
+	r.RegisterManually(path, handler, true, roles...)
 }
 
 // detectHTTPMethod determines the HTTP method from the embedded struct in the request type.
@@ -96,9 +112,36 @@ func detectHTTPMethod(reqType reflect.Type) string {
 }
 
 // wrapHandler wraps the gin context and the handler function to call the handler function with the correct parameters and handle the response.
-func wrapHandler(c *gin.Context, reqType reflect.Type, handler reflect.Value) {
-	//TODO: handle last param (nil) as user.
-	req := populateRequest(c, reqType, nil)
+func wrapHandler(c *gin.Context, reqType reflect.Type, handler reflect.Value, authenticated bool, roles []string) {
+	var user User
+	if authenticated {
+		if Current.Authenticator != nil {
+			usr, err := Current.Authenticator.Authenticate(c)
+			if err != nil {
+				panic(err)
+			}
+
+			if usr == nil {
+				c.JSON(401, gin.H{"error": "unauthorized"})
+				return
+			}
+
+			user = usr
+
+			if len(roles) > 0 {
+				for _, role := range roles {
+					if user.HasRole(role) {
+						break
+					}
+				}
+
+				c.JSON(403, gin.H{"error": "forbidden"})
+				return
+			}
+		}
+	}
+
+	req := populateRequest(c, reqType, user)
 	res := handler.Call([]reflect.Value{reflect.ValueOf(req)})[0].Interface()
 
 	if res == nil {

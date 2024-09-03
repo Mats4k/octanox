@@ -7,7 +7,6 @@ import (
 	"os/signal"
 
 	"github.com/gin-gonic/gin"
-	"gorm.io/gorm"
 
 	_ "github.com/joho/godotenv/autoload"
 )
@@ -20,8 +19,8 @@ type Instance struct {
 	*SubRouter
 	// Gin is the underlying Gin engine that powers the Octanox framework's web server.
 	Gin *gin.Engine
-	// DB is the underlying GORM database connection that powers the Octanox framework's database operations.
-	DB *gorm.DB
+	// Authenticator is the underlying authenticator that powers the Octanox framework's authentication operations. Can be nil if no authenticator has been created.
+	Authenticator Authenticator
 	// hooks is a map of hooks to their respective functions.
 	hooks map[Hook][]func(*Instance)
 	// errorHandlers is a list of error handlers that can be called when an error occurs.

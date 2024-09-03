@@ -31,7 +31,7 @@ func (r *SubRouter) Router(url string) *SubRouter {
 }
 
 // Register registers a new route handler. The function automatically detects the method, request and response type. If any of these detection fails, it will panic.
-func (r *SubRouter) Register(path string, handler func(any) any) {
+func (r *SubRouter) Register(path string, handler interface{}) {
 	handlerType := reflect.TypeOf(handler)
 
 	if handlerType.Kind() != reflect.Func || handlerType.NumIn() != 1 || handlerType.NumOut() != 1 {
@@ -55,7 +55,7 @@ func (r *SubRouter) Register(path string, handler func(any) any) {
 	}
 
 	r.gin.Handle(method, routeMeta.path, func(c *gin.Context) {
-		wrapHandler(c, reqType, handler)
+		wrapHandler(c, reqType, reflect.ValueOf(handler))
 	})
 }
 
@@ -90,10 +90,10 @@ func detectHTTPMethod(reqType reflect.Type) string {
 }
 
 // wrapHandler wraps the gin context and the handler function to call the handler function with the correct parameters and handle the response.
-func wrapHandler(c *gin.Context, reqType reflect.Type, handler func(any) any) {
+func wrapHandler(c *gin.Context, reqType reflect.Type, handler reflect.Value) {
 	//TODO: handle last param (nil) as user.
 	req := populateRequest(c, reqType, nil)
-	res := handler(req)
+	res := handler.Call([]reflect.Value{reflect.ValueOf(req)})[0].Interface()
 
 	if res == nil {
 		c.Status(204)

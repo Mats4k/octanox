@@ -19,6 +19,10 @@ func (a *BearerAuthenticator) SetExp(exp int64) {
 	a.exp = exp
 }
 
+func (a *BearerAuthenticator) Method() AuthenticationMethod {
+	return AuthenticationMethodBearer
+}
+
 func (a *BearerAuthenticator) Authenticate(c *gin.Context) (User, error) {
 	token := c.GetHeader("Authorization")
 	if token == "" {

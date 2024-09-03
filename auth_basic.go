@@ -6,6 +6,10 @@ type BasicAuthenticator struct {
 	provider UserProvider
 }
 
+func (a *BasicAuthenticator) Method() AuthenticationMethod {
+	return AuthenticationMethodBasic
+}
+
 func (a *BasicAuthenticator) Authenticate(c *gin.Context) (User, error) {
 	username, password, ok := c.Request.BasicAuth()
 	if !ok {

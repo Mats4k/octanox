@@ -10,8 +10,12 @@ import (
 // Router is a struct that represents a router in the Octanox framework. It wraps around a Gin router group with the only two differences
 // to populate the request handlers, handling responses and emit the DTOs to the client code generation process.
 type SubRouter struct {
-	gin    *gin.RouterGroup
-	routes []route
+	url string
+	gin *gin.RouterGroup
+}
+
+func (s *SubRouter) combineURL(path string) string {
+	return s.url + path
 }
 
 // route is a struct containing metadata about a route in the Octanox framework.
@@ -25,8 +29,8 @@ type route struct {
 // Router creates a new router with the given URL prefix.
 func (r *SubRouter) Router(url string) *SubRouter {
 	return &SubRouter{
-		gin:    r.gin.Group(url),
-		routes: make([]route, 0),
+		url: url,
+		gin: r.gin.Group(url),
 	}
 }
 
@@ -49,18 +53,16 @@ func (r *SubRouter) RegisterManually(path string, handler interface{}, authentic
 
 	method := detectHTTPMethod(reqType)
 
-	routeMeta := route{
-		method:       method,
-		path:         path,
-		requestType:  reqType,
-		responseType: resType,
-	}
-
 	if Current.isDryRun {
-		r.routes = append(r.routes, routeMeta)
+		Current.routes = append(Current.routes, route{
+			method:       method,
+			path:         r.combineURL(path),
+			requestType:  reqType,
+			responseType: resType,
+		})
 	}
 
-	r.gin.Handle(method, routeMeta.path, func(c *gin.Context) {
+	r.gin.Handle(method, path, func(c *gin.Context) {
 		wrapHandler(c, reqType, reflect.ValueOf(handler), authenticated, roles)
 	})
 }

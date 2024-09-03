@@ -16,8 +16,23 @@ type UserProvider interface {
 	ProvideByApiKey(apiKey string) (User, error)
 }
 
+// AuthenticationMethod is an enum that defines the authentication methods.
+type AuthenticationMethod int
+
+const (
+	// AuthenticationMethodBearer is the Bearer authentication method.
+	AuthenticationMethodBearer AuthenticationMethod = iota
+	// AuthenticationMethodBasic is the Basic authentication method.
+	AuthenticationMethodBasic
+	// AuthenticationMethodApiKey is the API key authentication method.
+	AuthenticationMethodApiKey
+)
+
 // Authenticator is an struct that defines the authentication module.
 type Authenticator interface {
+	// Method returns the authentication method.
+	Method() AuthenticationMethod
+
 	// Authenticate authenticates the client request. Gets the client request context and returns the authenticated user.
 	// If the authentication fails, it should return nil.
 	Authenticate(c *gin.Context) (User, error)
@@ -52,6 +67,7 @@ func (b *AuthenticatorBuilder) Bearer(secret, basePath string) *BearerAuthentica
 	bearer.registerRoutes(b.instance.Gin.Group(basePath))
 
 	b.instance.Authenticator = bearer
+	b.instance.authLoginBasePath = basePath
 
 	return bearer
 }

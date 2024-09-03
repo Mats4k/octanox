@@ -6,6 +6,10 @@ type ApiKeyAuthenticator struct {
 	provider UserProvider
 }
 
+func (a *ApiKeyAuthenticator) Method() AuthenticationMethod {
+	return AuthenticationMethodApiKey
+}
+
 func (a *ApiKeyAuthenticator) Authenticate(c *gin.Context) (User, error) {
 	apiKey := c.GetHeader("X-API-Key")
 	if apiKey == "" {

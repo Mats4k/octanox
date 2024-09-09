@@ -32,6 +32,8 @@ type Instance struct {
 	isDryRun bool
 	// routes is a list of routes that have been registered in the Octanox framework.
 	routes []route
+	// serializers is a map of serializers to their respective functions.
+	serializers serializerRegistry
 }
 
 // New creates a new instance of the Octanox framework. If an instance already exists, it will return the existing instance.
@@ -53,6 +55,7 @@ func New() *Instance {
 		isDebug:       gin.Mode() == gin.DebugMode,
 		isDryRun:      os.Getenv("NOX__DRY_RUN") == "true",
 		routes:        make([]route, 0),
+		serializers:   make(serializerRegistry),
 	}
 
 	Current.emitHook(Hook_Init)
@@ -117,6 +120,8 @@ func (i *Instance) runInternally() {
 		os.Exit(0)
 		return
 	}
+
+	i.emitHook(Hook_Start)
 
 	i.Gin.Run()
 }

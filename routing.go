@@ -1,6 +1,7 @@
 package octanox
 
 import (
+	"fmt"
 	"net/http"
 	"reflect"
 
@@ -38,8 +39,8 @@ func (r *SubRouter) Router(url string) *SubRouter {
 func (r *SubRouter) RegisterManually(path string, handler interface{}, authenticated bool, roles ...string) {
 	handlerType := reflect.TypeOf(handler)
 
-	if handlerType.Kind() != reflect.Func || handlerType.NumIn() != 1 || handlerType.NumOut() != 1 {
-		panic("Handler function must have one input parameter and one return value")
+	if handlerType.Kind() != reflect.Func || handlerType.NumIn() != 1 || handlerType.NumOut() < 1 {
+		panic("Handler function must have one input parameter and at least one return value, in: " + fmt.Sprintf("%d", handlerType.NumIn()) + ", out: " + fmt.Sprintf("%d", handlerType.NumOut()))
 	}
 
 	reqType := handlerType.In(0)
@@ -69,6 +70,7 @@ func (r *SubRouter) RegisterManually(path string, handler interface{}, authentic
 
 // Register registers a new route handler. The function automatically detects the method, request and response type. If any of these detection fails, it will panic.
 // If an authenticator is set, the route will be protected.
+// Should return the response. Can return a Context to set the serializer context.
 func (r *SubRouter) Register(path string, handler interface{}, roles ...string) {
 	r.RegisterManually(path, handler, Current.Authenticator != nil, roles...)
 }
@@ -144,7 +146,13 @@ func wrapHandler(c *gin.Context, reqType reflect.Type, handler reflect.Value, au
 	}
 
 	req := populateRequest(c, reqType, user)
-	res := handler.Call([]reflect.Value{reflect.ValueOf(req)})[0].Interface()
+	rv := handler.Call([]reflect.Value{reflect.ValueOf(req)})
+	res := rv[0].Interface()
+
+	var sc Context
+	if len(rv) > 1 {
+		sc = rv[1].Interface().(Context)
+	}
 
 	if res == nil {
 		c.Status(204)
@@ -155,5 +163,5 @@ func wrapHandler(c *gin.Context, reqType reflect.Type, handler reflect.Value, au
 		panic(res)
 	}
 
-	c.JSON(200, res)
+	c.JSON(200, Current.Serialize(res, sc))
 }

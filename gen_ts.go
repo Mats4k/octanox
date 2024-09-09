@@ -103,36 +103,6 @@ func (i *Instance) generateTypeScriptClientCode(path string, routes []route) {
 		"",
 	)
 
-	if i.Authenticator != nil {
-		if i.Authenticator.Method() == AuthenticationMethodBearerOAuth2 {
-			builder.writeLines(
-				"export async function login(): Promise<void> {",
-				"  window.location.href = baseUrl + '"+i.authLoginBasePath+"'",
-				"}",
-				"",
-			)
-		} else {
-			builder.writeLines(
-				"export async function login(username: string, password: string): Promise<string> {",
-				"  let formData = new FormData()",
-				"  formData.append('username', username)",
-				"  formData.append('password', password)",
-				"  let response = await fetch(baseUrl + '"+i.authLoginBasePath+"', {",
-				"    method: 'POST',",
-				"    body: formData",
-				"  })",
-				"  if (!response.ok) {",
-				"    throw new Error(`Failed to login: ${response.statusText}`)",
-				"  }",
-				"  let {token} = await response.json()",
-				"  localStorage.setItem('token', token)",
-				"  return token",
-				"}",
-				"",
-			)
-		}
-	}
-
 	// Generate interfaces for the structs in the request body
 	for _, route := range routes {
 		if route.requestType != nil && route.responseType.Name() != "" {

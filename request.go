@@ -90,9 +90,9 @@ func populateRequest(c *gin.Context, reqType reflect.Type, user User) any {
 			}
 
 			if fieldValue.Kind() == reflect.Ptr {
-				fieldValue.Set(reflect.ValueOf(user))
+				fieldValue.Set(reflect.ValueOf(user).Addr())
 			} else {
-				fieldValue.Set(reflect.ValueOf(user).Elem())
+				fieldValue.Set(reflect.ValueOf(user))
 			}
 
 			continue
@@ -167,7 +167,6 @@ func populateRequest(c *gin.Context, reqType reflect.Type, user User) any {
 		}
 	}
 
-	// Return a pointer to the populated struct as an `any`
 	return reqValue.Addr().Interface()
 }
 

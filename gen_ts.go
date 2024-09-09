@@ -65,7 +65,7 @@ func (i *Instance) generateTypeScriptClientCode(path string, routes []route) {
 
 	if i.Authenticator != nil {
 		authMethod := i.Authenticator.Method()
-		if authMethod == AuthenticationMethodBearer {
+		if authMethod == AuthenticationMethodBearer || authMethod == AuthenticationMethodBearerOAuth2 {
 			builder.writeLines(
 				"    headers: {",
 				" 		 'Authorization': `Bearer ${localStorage.getItem('token')}`",
@@ -104,24 +104,28 @@ func (i *Instance) generateTypeScriptClientCode(path string, routes []route) {
 	)
 
 	if i.Authenticator != nil {
-		builder.writeLines(
-			"export async function login(username: string, password: string): Promise<string> {",
-			"  let formData = new FormData()",
-			"  formData.append('username', username)",
-			"  formData.append('password', password)",
-			"  let response = await fetch(baseUrl + '"+i.authLoginBasePath+"', {",
-			"    method: 'POST',",
-			"    body: formData",
-			"  })",
-			"  if (!response.ok) {",
-			"    throw new Error(`Failed to login: ${response.statusText}`)",
-			"  }",
-			"  let {token} = await response.json()",
-			"  localStorage.setItem('token', token)",
-			"  return token",
-			"}",
-			"",
-		)
+		if i.Authenticator.Method() == AuthenticationMethodBearerOAuth2 {
+			//TODO: Implement OAuth2 login
+		} else {
+			builder.writeLines(
+				"export async function login(username: string, password: string): Promise<string> {",
+				"  let formData = new FormData()",
+				"  formData.append('username', username)",
+				"  formData.append('password', password)",
+				"  let response = await fetch(baseUrl + '"+i.authLoginBasePath+"', {",
+				"    method: 'POST',",
+				"    body: formData",
+				"  })",
+				"  if (!response.ok) {",
+				"    throw new Error(`Failed to login: ${response.statusText}`)",
+				"  }",
+				"  let {token} = await response.json()",
+				"  localStorage.setItem('token', token)",
+				"  return token",
+				"}",
+				"",
+			)
+		}
 	}
 
 	// Generate interfaces for the structs in the request body
@@ -205,7 +209,18 @@ func (tb *tsCodeBuilder) generateFunctionName(route route) string {
 	path := strings.Replace(route.path, os.Getenv("NOX__GEN_OMIT_URL"), "", 1)
 	path = strings.ReplaceAll(path, "/", "_")
 	path = strings.ReplaceAll(path, ":", "")
-	return strings.ToLower(route.method) + path
+	name := strings.ToLower(route.method) + path
+	name = strings.Map(func(r rune) rune {
+		if r == '@' {
+			return -1
+		}
+
+		if r >= 'a' && r <= 'z' || r >= 'A' && r <= 'Z' || r >= '0' && r <= '9' || r == '_' {
+			return r
+		}
+		return '_'
+	}, name)
+	return name
 }
 
 func (tb *tsCodeBuilder) generateFunctionParameters(t reflect.Type) {

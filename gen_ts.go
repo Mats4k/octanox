@@ -229,6 +229,16 @@ func (tb *tsCodeBuilder) generateFunctionParameters(t reflect.Type) {
 		if field.Anonymous {
 			continue
 		}
+
+		pathTag := field.Tag.Get("path")
+		queryTag := field.Tag.Get("query")
+		headerTag := field.Tag.Get("header")
+		bodyTag := field.Tag.Get("body")
+
+		if pathTag == "" && queryTag == "" && headerTag == "" && bodyTag == "" {
+			continue
+		}
+
 		tb.write(field.Name + ": ")
 		tb.typeFromGo(field.Type)
 

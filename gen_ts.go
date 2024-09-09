@@ -105,7 +105,12 @@ func (i *Instance) generateTypeScriptClientCode(path string, routes []route) {
 
 	if i.Authenticator != nil {
 		if i.Authenticator.Method() == AuthenticationMethodBearerOAuth2 {
-			//TODO: Implement OAuth2 login
+			builder.writeLines(
+				"export async function login(): Promise<void> {",
+				"  window.location.href = baseUrl + '"+i.authLoginBasePath+"'",
+				"}",
+				"",
+			)
 		} else {
 			builder.writeLines(
 				"export async function login(username: string, password: string): Promise<string> {",

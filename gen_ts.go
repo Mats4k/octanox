@@ -91,7 +91,21 @@ func (i *Instance) generateTypeScriptClientCode(path string, routes []route) {
 		"}",
 		"",
 		"async function fetchJson<T>(url: string, init?: RequestInit): Promise<T> {",
-		"  let response = await fetch(baseUrl + url, {...getBaseConfig(), ...init})",
+		"  const baseConfig = getBaseConfig()",
+		"  const config = init || {}",
+		"  if (!config.headers) {",
+		"    config.headers = {}",
+		"  }",
+		"  if (!config.headers['Content-Type']) {",
+		"    config.headers['Content-Type'] = 'application/json'",
+		"  }",
+		"  if (!config.headers['Accept']) {",
+		"    config.headers['Accept'] = 'application/json'",
+		"  }",
+		"	 if (!config.headers['Authorization'] && baseConfig.headers['Authorization']) {",
+		"    config.headers['Authorization'] = baseConfig.headers['Authorization']",
+		"  }",
+		"  let response = await fetch(baseUrl + url, config)",
 		"  if (response.status === 401) {",
 		"    unauthorizedHandler()",
 		"  }",
@@ -157,7 +171,6 @@ func (tb *tsCodeBuilder) generateRouteFunction(route route) {
 	if route.requestType != nil {
 		if route.method != http.MethodGet && route.requestType.NumField() > 0 {
 			tb.writeLine("body: JSON.stringify(" + tb.getBodyParamName(route.requestType) + "),")
-			tb.writeLine("headers: { 'Content-Type': 'application/json' },")
 		}
 	}
 

@@ -178,10 +178,20 @@ func (tb *tsCodeBuilder) generateRouteFunction(route route) {
 	tb.writeLine("};")
 
 	if route.requestType != nil {
+		first := true
+
 		for i := 0; i < route.requestType.NumField(); i++ {
 			field := route.requestType.Field(i)
 			if queryParam := field.Tag.Get("query"); queryParam != "" {
-				tb.writeLine("url += `" + tb.getQueryParamString(queryParam, field.Name) + "`")
+				tb.write("url += ")
+				if first {
+					tb.write("`?")
+					first = false
+				} else {
+					tb.write("`&")
+				}
+
+				tb.writeLine(tb.getQueryParamString(queryParam, field.Name) + "`")
 			}
 		}
 	}
@@ -246,7 +256,7 @@ func (tb *tsCodeBuilder) getBodyParamName(t reflect.Type) string {
 }
 
 func (tb *tsCodeBuilder) getQueryParamString(queryParam, fieldName string) string {
-	return fmt.Sprintf("?%s=${encodeURIComponent(%s.toString())}", queryParam, fieldName)
+	return fmt.Sprintf("%s=${encodeURIComponent(%s.toString())}", queryParam, fieldName)
 }
 
 func (tb *tsCodeBuilder) generateStructInterface(t reflect.Type) {

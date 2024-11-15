@@ -23,6 +23,11 @@ func (b *tsCodeBuilder) writeLine(s string) {
 	b.write("\n")
 }
 
+func (b *tsCodeBuilder) writeLineNoIdent(s string) {
+	b.write(s)
+	b.write("\n")
+}
+
 func (b *tsCodeBuilder) writeLines(strs ...string) {
 	for _, s := range strs {
 		b.writeLine(s)
@@ -191,7 +196,7 @@ func (tb *tsCodeBuilder) generateRouteFunction(route route) {
 					tb.write("`&")
 				}
 
-				tb.writeLine(tb.getQueryParamString(queryParam, field.Name) + "`")
+				tb.writeLineNoIdent(tb.getQueryParamString(queryParam, field.Name) + "`")
 			}
 		}
 	}

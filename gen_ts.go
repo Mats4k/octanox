@@ -256,7 +256,7 @@ func (tb *tsCodeBuilder) getBodyParamName(t reflect.Type) string {
 }
 
 func (tb *tsCodeBuilder) getQueryParamString(queryParam, fieldName string) string {
-	return fmt.Sprintf("%s=${encodeURIComponent(%s.toString())}", queryParam, fieldName)
+	return fmt.Sprintf("%s=${encodeURIComponent(%s.toString())}", strings.TrimSpace(queryParam), fieldName)
 }
 
 func (tb *tsCodeBuilder) generateStructInterface(t reflect.Type) {

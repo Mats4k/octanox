@@ -83,10 +83,14 @@ func populateRequest(c *gin.Context, reqType reflect.Type, user User) any {
 
 		if userTag := field.Tag.Get("user"); userTag != "" {
 			if user == nil || reflect.DeepEqual(user, reflect.Zero(reflect.TypeOf(user)).Interface()) {
-				panic(failedRequest{
-					status:  http.StatusUnauthorized,
-					message: "Unauthorized: User is required but not provided",
-				})
+				if userTag != "optional" {
+					panic(failedRequest{
+						status:  http.StatusUnauthorized,
+						message: "Unauthorized: User is required but not provided",
+					})
+				}
+
+				continue
 			}
 
 			if fieldValue.Kind() == reflect.Ptr {

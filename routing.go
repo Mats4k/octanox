@@ -118,20 +118,22 @@ func detectHTTPMethod(reqType reflect.Type) string {
 // wrapHandler wraps the gin context and the handler function to call the handler function with the correct parameters and handle the response.
 func wrapHandler(c *gin.Context, reqType reflect.Type, handler reflect.Value, authenticated bool, roles []string) {
 	var user User
-	if authenticated {
-		if Current.Authenticator != nil {
-			usr, err := Current.Authenticator.Authenticate(c)
-			if err != nil {
-				panic(err)
-			}
+	if Current.Authenticator != nil {
+		usr, err := Current.Authenticator.Authenticate(c)
+		if err != nil {
+			panic(err)
+		}
 
+		if authenticated {
 			if usr == nil {
 				c.JSON(401, gin.H{"error": "unauthorized"})
 				return
 			}
+		}
 
-			user = usr
+		user = usr
 
+		if authenticated {
 			if len(roles) > 0 {
 				for _, role := range roles {
 					if user.HasRole(role) {

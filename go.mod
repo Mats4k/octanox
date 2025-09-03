@@ -1,4 +1,4 @@
-module github.com/sevenitynet/octanox
+module github.com/Mats4k/octanox
 
 go 1.24
 

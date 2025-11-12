@@ -38,3 +38,10 @@ func generatePKCE() (string, string) {
 	challenge := base64.RawURLEncoding.EncodeToString(sum[:])
 	return verifier, challenge
 }
+
+// generateNonce returns a random base64url string suitable for OIDC nonce.
+func generateNonce() string {
+	b := make([]byte, 16) // 128 bits of entropy
+	_, _ = rand.Read(b)
+	return base64.RawURLEncoding.EncodeToString(b)
+}

@@ -19,6 +19,7 @@ type OAuth2BearerAuthenticator struct {
 	exp                  int64
 	states               StateMap
 	pkces                StringStateMap
+	nonces               StringStateMap
 	// Optional OIDC ID token validation
 	validateIDToken bool
 	oidcIssuer      string
@@ -57,11 +58,14 @@ func (a *OAuth2BearerAuthenticator) login(c *gin.Context) {
 	state := a.states.Generate(300)
 	verifier, challenge := generatePKCE()
 	a.pkces.Store(state, verifier, 600)
+	nonce := generateNonce()
+	a.nonces.Store(state, nonce, 600)
 
 	// Request authorization code with PKCE (S256)
 	url := a.config.AuthCodeURL(state,
 		oauth2.SetAuthURLParam("code_challenge", challenge),
 		oauth2.SetAuthURLParam("code_challenge_method", "S256"),
+		oauth2.SetAuthURLParam("nonce", nonce),
 		// Ensure scopes are sent as a space-delimited string
 		oauth2.SetAuthURLParam("scope", strings.Join(a.config.Scopes, " ")),
 	)
@@ -84,6 +88,8 @@ func (a *OAuth2BearerAuthenticator) callback(c *gin.Context) {
 		c.String(400, "missing PKCE verifier")
 		return
 	}
+	// Retrieve expected nonce for this state (may be empty if not used)
+	expectedNonce := a.nonces.Pop(state)
 
 	token, err := a.config.Exchange(context.Background(), code,
 		oauth2.SetAuthURLParam("code_verifier", verifier),
@@ -97,7 +103,7 @@ func (a *OAuth2BearerAuthenticator) callback(c *gin.Context) {
 	if a.validateIDToken {
 		if raw := token.Extra("id_token"); raw != nil {
 			idToken, _ := raw.(string)
-			if err := validateIDTokenWithIssuer(idToken, a.oidcIssuer, a.config.ClientID); err != nil {
+			if err := validateIDTokenWithIssuer(idToken, a.oidcIssuer, a.config.ClientID, expectedNonce); err != nil {
 				c.String(400, "Invalid ID Token")
 				return
 			}

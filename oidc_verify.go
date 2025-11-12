@@ -30,7 +30,7 @@ type jwksResponse struct {
 	Keys []jwkKey `json:"keys"`
 }
 
-func validateIDTokenWithIssuer(idToken string, issuer string, clientID string) error {
+func validateIDTokenWithIssuer(idToken string, issuer string, clientID string, expectedNonce string) error {
 	// Fetch discovery
 	discoveryURL := strings.TrimRight(issuer, "/") + "/.well-known/openid-configuration"
 	resp, err := http.Get(discoveryURL)
@@ -100,8 +100,18 @@ func validateIDTokenWithIssuer(idToken string, issuer string, clientID string) e
 	if !token.Valid {
 		return errors.New("invalid token")
 	}
-	// Optionally, we could check nonce here if kept by client
+	// Check nonce if expectedNonce provided
+	if expectedNonce != "" {
+		if claims, ok := token.Claims.(jwt.MapClaims); ok {
+			nonceVal, has := claims["nonce"]
+			if !has {
+				return errors.New("missing nonce")
+			}
+			nonceStr, ok2 := nonceVal.(string)
+			if !ok2 || nonceStr != expectedNonce {
+				return errors.New("nonce mismatch")
+			}
+		}
+	}
 	return nil
 }
-
-

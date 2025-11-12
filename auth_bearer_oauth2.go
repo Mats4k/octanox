@@ -2,6 +2,7 @@ package octanox
 
 import (
 	"context"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -17,6 +18,10 @@ type OAuth2BearerAuthenticator struct {
 	secret               []byte
 	exp                  int64
 	states               StateMap
+	pkces                StringStateMap
+	// Optional OIDC ID token validation
+	validateIDToken bool
+	oidcIssuer      string
 }
 
 // SetExp sets the expiration time for the token.
@@ -48,7 +53,18 @@ func (a *OAuth2BearerAuthenticator) Authenticate(c *gin.Context) (User, error) {
 }
 
 func (a *OAuth2BearerAuthenticator) login(c *gin.Context) {
-	url := a.config.AuthCodeURL(a.states.Generate(300))
+	// Generate a state and PKCE pair
+	state := a.states.Generate(300)
+	verifier, challenge := generatePKCE()
+	a.pkces.Store(state, verifier, 600)
+
+	// Request authorization code with PKCE (S256)
+	url := a.config.AuthCodeURL(state,
+		oauth2.SetAuthURLParam("code_challenge", challenge),
+		oauth2.SetAuthURLParam("code_challenge_method", "S256"),
+		// Ensure scopes are sent as a space-delimited string
+		oauth2.SetAuthURLParam("scope", strings.Join(a.config.Scopes, " ")),
+	)
 
 	c.Redirect(302, url)
 }
@@ -62,10 +78,33 @@ func (a *OAuth2BearerAuthenticator) callback(c *gin.Context) {
 
 	code := c.Query("code")
 
-	token, err := a.config.Exchange(context.Background(), code)
+	// Retrieve PKCE verifier for this state
+	verifier := a.pkces.Pop(state)
+	if verifier == "" {
+		c.String(400, "missing PKCE verifier")
+		return
+	}
+
+	token, err := a.config.Exchange(context.Background(), code,
+		oauth2.SetAuthURLParam("code_verifier", verifier),
+	)
 	if err != nil {
 		c.String(400, "Token Exchange Failed")
 		return
+	}
+
+	// Optionally validate ID token using OIDC discovery + JWKS
+	if a.validateIDToken {
+		if raw := token.Extra("id_token"); raw != nil {
+			idToken, _ := raw.(string)
+			if err := validateIDTokenWithIssuer(idToken, a.oidcIssuer, a.config.ClientID); err != nil {
+				c.String(400, "Invalid ID Token")
+				return
+			}
+		} else {
+			c.String(400, "Missing ID Token")
+			return
+		}
 	}
 
 	user, err := a.provider.ProvideForLogin(token.AccessToken)
@@ -89,6 +128,12 @@ func (a *OAuth2BearerAuthenticator) callback(c *gin.Context) {
 func (a *OAuth2BearerAuthenticator) registerRoutes(r *gin.RouterGroup) {
 	r.GET("/login", a.login)
 	r.GET("/oauth2/callback", a.callback)
+}
+
+// EnableOIDCValidation enforces validation of ID token against the given issuer using JWKS.
+func (a *OAuth2BearerAuthenticator) EnableOIDCValidation(issuer string) {
+	a.oidcIssuer = issuer
+	a.validateIDToken = true
 }
 
 func (a *OAuth2BearerAuthenticator) createToken(user User) (string, error) {

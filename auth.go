@@ -115,6 +115,8 @@ func (b *AuthenticatorBuilder) BearerOAuth2(oauth2Endpoint oauth2.Endpoint, scop
 		},
 		secret: []byte(secret),
 		states: make(StateMap),
+		pkces:  make(StringStateMap),
+		nonces: make(StringStateMap),
 		exp:    86400,
 	}
 
